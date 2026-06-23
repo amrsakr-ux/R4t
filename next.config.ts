@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // standalone output is for Docker/Render; Netlify uses its own Next.js runtime
+  ...(process.env.NETLIFY ? {} : { output: "standalone" }),
   serverExternalPackages: ["@prisma/client", "pdf-parse"],
   images: {
     remotePatterns: [
