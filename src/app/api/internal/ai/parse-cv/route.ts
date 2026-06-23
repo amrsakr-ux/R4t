@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.cvDocument.update({
       where: { id: cvDocumentId },
-      data: { parsedData: parsedData as unknown as Record<string, unknown>, parseStatus: "parsed" },
+      data: { parsedData: JSON.parse(JSON.stringify(parsedData)), parseStatus: "parsed" },
     });
 
     // Trigger scoring

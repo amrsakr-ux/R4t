@@ -14,7 +14,7 @@ async function getScoringWeights(): Promise<ScoringWeights> {
   });
 
   if (config?.value) {
-    return config.value as ScoringWeights;
+    return config.value as unknown as ScoringWeights;
   }
 
   return {
@@ -108,7 +108,7 @@ export async function scoreCandidate(candidateId: string): Promise<void> {
   const latestCV = candidate.cvDocuments[0];
   if (!latestCV?.parsedData) throw new Error("No parsed CV found for candidate");
 
-  const parsedCV = latestCV.parsedData as ParsedCVData;
+  const parsedCV = latestCV.parsedData as unknown as ParsedCVData;
   const assessmentResponses = candidate.assessmentResponses.map((r) => ({
     question: r.question.questionText,
     response: r.responseText,
@@ -168,8 +168,8 @@ export async function scoreCandidate(candidateId: string): Promise<void> {
       experienceScore: scores.experience,
       assessmentScore: scores.assessment,
       modelVersion: MODEL_VERSION,
-      scoringWeights: weights,
-      scoreBreakdown: scores.breakdown,
+      scoringWeights: JSON.parse(JSON.stringify(weights)),
+      scoreBreakdown: JSON.parse(JSON.stringify(scores.breakdown)),
     },
   });
 

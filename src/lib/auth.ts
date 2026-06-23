@@ -78,7 +78,7 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
+declare module "@auth/core/types" {
   interface JWT {
     id: string;
     role: UserRole;

@@ -80,7 +80,7 @@ export async function matchCandidateToJobs(candidateId: string): Promise<void> {
   const latestCV = candidate.cvDocuments[0];
   if (!latestCV?.parsedData) throw new Error("No parsed CV data");
 
-  const parsedCV = latestCV.parsedData as ParsedCVData;
+  const parsedCV = latestCV.parsedData as unknown as ParsedCVData;
 
   const activeJobs = await prisma.jobOpportunity.findMany({
     where: { isActive: true },
