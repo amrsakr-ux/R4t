@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  candidate
+  ops_staff
+  ops_admin
+  bd
+  system_admin
+}
+
+enum GraduationStatus {
+  graduated
+  in_progress
+  not_started
+}
+
+enum CandidateStatus {
+  invited
+  registered
+  assessed
+  scored
+  shortlisted
+  placed
+  rejected
+}
+
+enum QuestionCategory {
+  motivation
+  goals
+  challenges
+  experience
+  skills
+  preferences
+}
+
+enum ParseStatus {
+  pending
+  parsed
+  failed
+}
+
+enum PlacementStatus {
+  confirmed
+  pending
+  fell_through
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(candidate)
+  fullName     String    @map("full_name")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+  isActive     Boolean   @default(true) @map("is_active")
+
+  candidate    Candidate?
+  auditLogs    AuditLog[]
+  placements   Placement[] @relation("PlacementCreatedBy")
+
+  @@map("users")
+}
+
+model Candidate {
+  id                   String           @id @default(uuid())
+  userId               String           @unique @map("user_id")
+  phone                String?
+  educationLevel       String?          @map("education_level")
+  graduationStatus     GraduationStatus? @map("graduation_status")
+  careerInterests      String[]         @map("career_interests")
+  preferredJobTracks   String[]         @map("preferred_job_tracks")
+  applicationLinkToken String?          @unique @map("application_link_token")
+  status               CandidateStatus  @default(invited)
+  notes                String?
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessmentResponses  AssessmentResponse[]
+  cvDocuments          CvDocument[]
+  aiScores             AiScore[]
+  jobMatches           CandidateJobMatch[]
+  placements           Placement[]
+
+  @@map("candidates")
+}
+
+model AssessmentQuestion {
+  id           String           @id @default(uuid())
+  questionText String           @map("question_text")
+  category     QuestionCategory
+  isActive     Boolean          @default(true) @map("is_active")
+  displayOrder Int              @map("display_order")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  responses    AssessmentResponse[]
+
+  @@map("assessment_questions")
+}
+
+model AssessmentResponse {
+  id           String   @id @default(uuid())
+  candidateId  String   @map("candidate_id")
+  questionId   String   @map("question_id")
+  responseText String   @map("response_text")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  candidate    Candidate          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  question     AssessmentQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([candidateId, questionId])
+  @@map("assessment_responses")
+}
+
+model CvDocument {
+  id          String      @id @default(uuid())
+  candidateId String      @map("candidate_id")
+  fileUrl     String      @map("file_url")
+  fileName    String?     @map("file_name")
+  fileSize    Int?        @map("file_size")
+  parsedData  Json?       @map("parsed_data")
+  parseStatus ParseStatus @default(pending) @map("parse_status")
+  uploadedAt  DateTime    @default(now()) @map("uploaded_at")
+
+  candidate   Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("cv_documents")
+}
+
+model Client {
+  id           String           @id @default(uuid())
+  name         String
+  industry     String?
+  contactEmail String?          @map("contact_email")
+  contactName  String?          @map("contact_name")
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  jobOpportunities JobOpportunity[]
+  placements       Placement[]
+
+  @@map("clients")
+}
+
+model JobOpportunity {
+  id                      String   @id @default(uuid())
+  title                   String
+  clientId                String?  @map("client_id")
+  requiredSkills          String[] @map("required_skills")
+  requiredExperienceYears Int?     @map("required_experience_years")
+  jobTrack                String   @map("job_track")
+  description             String?
+  isActive                Boolean  @default(true) @map("is_active")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  client     Client?             @relation(fields: [clientId], references: [id])
+  jobMatches CandidateJobMatch[]
+  placements Placement[]
+
+  @@map("job_opportunities")
+}
+
+model AiScore {
+  id                    String   @id @default(uuid())
+  candidateId           String   @map("candidate_id")
+  overallScore          Int      @map("overall_score")
+  cvQualityScore        Int      @map("cv_quality_score")
+  skillsRelevanceScore  Int      @map("skills_relevance_score")
+  experienceScore       Int      @map("experience_score")
+  assessmentScore       Int      @map("assessment_score")
+  modelVersion          String   @map("model_version")
+  scoringWeights        Json?    @map("scoring_weights")
+  scoreBreakdown        Json?    @map("score_breakdown")
+  computedAt            DateTime @default(now()) @map("computed_at")
+
+  candidate             Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("ai_scores")
+}
+
+model CandidateJobMatch {
+  id                 String   @id @default(uuid())
+  candidateId        String   @map("candidate_id")
+  jobOpportunityId   String   @map("job_opportunity_id")
+  matchPercentage    Float    @map("match_percentage")
+  recommendedRank    Int      @map("recommended_rank")
+  matchReasons       String[] @map("match_reasons")
+  modelVersion       String   @map("model_version")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  candidate          Candidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  jobOpportunity     JobOpportunity @relation(fields: [jobOpportunityId], references: [id])
+
+  @@unique([candidateId, jobOpportunityId])
+  @@map("candidate_job_matches")
+}
+
+model Placement {
+  id               String          @id @default(uuid())
+  candidateId      String          @map("candidate_id")
+  jobOpportunityId String?         @map("job_opportunity_id")
+  clientId         String          @map("client_id")
+  projectName      String?         @map("project_name")
+  jobTitle         String          @map("job_title")
+  placementDate    DateTime        @map("placement_date")
+  placementStatus  PlacementStatus @default(pending) @map("placement_status")
+  salary           String?
+  notes            String?
+  createdBy        String          @map("created_by")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  candidate        Candidate      @relation(fields: [candidateId], references: [id])
+  jobOpportunity   JobOpportunity? @relation(fields: [jobOpportunityId], references: [id])
+  client           Client         @relation(fields: [clientId], references: [id])
+  createdByUser    User           @relation("PlacementCreatedBy", fields: [createdBy], references: [id])
+
+  @@map("placements")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("system_config")
+}
