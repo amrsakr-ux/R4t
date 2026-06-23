@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: r4t-ops-platform
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npx tsx prisma/seed.ts && node .next/standalone/server.js
+    healthCheckPath: /login
+    envVars:
+      - key: HOSTNAME
+        value: "0.0.0.0"
+      - key: PORT
+        value: "3000"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: r4t-postgres
+          property: connectionString
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: INTERNAL_API_SECRET
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+databases:
+  - name: r4t-postgres
+    plan: free
+    databaseName: r4t_ops_db
+    user: r4t_user
