@@ -2,9 +2,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import type { ParsedCVData, ScoringWeights, ScoreBreakdown } from "@/types";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let anthropicClient: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return anthropicClient;
+}
 
 const MODEL_VERSION = "1.0.0";
 
@@ -66,7 +70,7 @@ Return ONLY this JSON:
   "assessment": { "score": 85, "reasoning": "..." }
 }`;
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropic().messages.create({
     model: "claude-opus-4-8",
     max_tokens: 1000,
     messages: [{ role: "user", content: prompt }],

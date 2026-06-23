@@ -2,14 +2,18 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import type { ParsedCVData } from "@/types";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiClient;
+}
 
 const MODEL_VERSION = "1.0.0";
 
 async function getEmbedding(text: string): Promise<number[]> {
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: "text-embedding-3-small",
     input: text,
   });

@@ -1,9 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ParsedCVData } from "@/types";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let anthropicClient: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return anthropicClient;
+}
 
 export async function parseCV(cvText: string): Promise<ParsedCVData> {
   const prompt = `You are an expert CV/resume parser. Extract structured information from the following CV text and return it as valid JSON.
@@ -53,7 +57,7 @@ Rules:
 - Be thorough and accurate
 - Return ONLY the JSON object, no other text`;
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropic().messages.create({
     model: "claude-opus-4-8",
     max_tokens: 2000,
     messages: [{ role: "user", content: prompt }],
