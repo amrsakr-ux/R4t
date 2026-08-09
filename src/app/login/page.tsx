@@ -49,7 +49,7 @@ export default async function LoginPage({
           <div className="mt-6 text-center text-sm text-muted-foreground">
             ليس لديكِ حساب؟{" "}
             <a
-              href="https://wa.me/201000000000"
+              href="https://wa.me/201023290018"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-primary hover:underline"

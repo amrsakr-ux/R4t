@@ -12,7 +12,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-const WHATSAPP_LINK = "https://wa.me/201000000000?text=" + encodeURIComponent("السلام عليكم، أرغب في التسجيل بأكاديمية سَنَا");
+import { whatsappLink } from "@/lib/constants";
+const WHATSAPP_LINK = whatsappLink("السلام عليكم، أرغب في التسجيل بأكاديمية سَنَا");
 
 export default function HomePage() {
   return (

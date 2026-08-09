@@ -10,7 +10,7 @@ export default function ForgotPasswordPage() {
           تواصلي مع إدارة الأكاديمية عبر واتساب لإعادة تعيين كلمة المرور.
         </p>
         <Button asChild className="w-full bg-primary hover:bg-primary/90">
-          <a href="https://wa.me/201000000000" target="_blank" rel="noopener noreferrer">
+          <a href="https://wa.me/201023290018" target="_blank" rel="noopener noreferrer">
             تواصل عبر واتساب
           </a>
         </Button>
