@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { GroupForm } from "./group-form";
+import { academicYearOptions, currentAcademicYear } from "@/lib/academic-year";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export default async function NewGroupPage() {
         <GroupForm
           teachers={teachers.map((t) => ({ id: t.id, name: t.user.fullName }))}
           programs={programs.map((p) => ({ id: p.id, name: p.name }))}
+          academicYears={academicYearOptions(3)}
+          defaultAcademicYear={currentAcademicYear()}
         />
       </div>
     </div>

@@ -48,35 +48,41 @@ enum EvaluationGrade {
   needs_review
 }
 
+enum EnrollmentStatus {
+  active
+  paused
+  completed
+  withdrawn
+}
+
+enum MeetingProvider {
+  google_meet
+  zoom
+  discord
+  teams
+  other
+}
+
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  role         UserRole
-  fullName     String
-  phone        String?
-  avatarUrl    String?
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  username           String    @unique
+  email              String?   @unique
+  passwordHash       String
+  role               UserRole
+  fullName           String
+  phone              String?
+  avatarUrl          String?
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   student  Student?
   teacher  Teacher?
   admin    Admin?
-  sessions Session[]
 
   @@index([role])
-}
-
-model Session {
-  id        String   @id @default(uuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 model Program {
@@ -87,33 +93,27 @@ model Program {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
 
-  students Student[]
-  groups   Group[]
+  enrollments Enrollment[]
+  groups      Group[]
 }
 
 model Student {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  programId   String?
-  groupId     String?
-  gender      Gender   @default(female)
-  birthDate   DateTime?
-  guardianName String?
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  gender        Gender    @default(female)
+  birthDate     DateTime?
+  guardianName  String?
   guardianPhone String?
-  notes       String?
-  joinedAt    DateTime @default(now())
+  notes         String?
+  joinedAt      DateTime  @default(now())
 
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  program         Program?           @relation(fields: [programId], references: [id])
-  group           Group?             @relation(fields: [groupId], references: [id])
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   memorizationPlan MemorizationPlan?
-  lessons         Lesson[]
-  attendance      Attendance[]
-  evaluations     Evaluation[]
-  payments        Payment[]
-
-  @@index([groupId])
-  @@index([programId])
+  enrollments      Enrollment[]
+  lessons          Lesson[]
+  attendance       Attendance[]
+  evaluations      Evaluation[]
+  payments         Payment[]
 }
 
 model Teacher {
@@ -133,33 +133,57 @@ model Admin {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Group {
-  id          String   @id @default(uuid())
-  name        String
-  teacherId   String?
-  programId   String?
-  meetLink    String?
-  maxStudents Int      @default(10)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+// Yearly enrollment tying a student to a program/group in a specific academic year.
+model Enrollment {
+  id           String           @id @default(uuid())
+  studentId    String
+  academicYear String           // "2026-2027"
+  programId    String?
+  groupId      String?
+  startDate    DateTime
+  endDate      DateTime?
+  status       EnrollmentStatus @default(active)
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  teacher   Teacher?   @relation(fields: [teacherId], references: [id])
-  program   Program?   @relation(fields: [programId], references: [id])
-  students  Student[]
-  schedules Schedule[]
-  lessons   Lesson[]
+  student Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  program Program? @relation(fields: [programId], references: [id])
+  group   Group?   @relation(fields: [groupId], references: [id])
+
+  @@unique([studentId, academicYear])
+  @@index([academicYear, status])
+  @@index([groupId])
+}
+
+model Group {
+  id              String          @id @default(uuid())
+  name            String
+  teacherId       String?
+  programId       String?
+  meetingProvider MeetingProvider @default(google_meet)
+  meetLink        String?
+  maxStudents     Int             @default(10)
+  isActive        Boolean         @default(true)
+  academicYear    String?         // active academic year for this group
+  createdAt       DateTime        @default(now())
+
+  teacher     Teacher?     @relation(fields: [teacherId], references: [id])
+  program     Program?     @relation(fields: [programId], references: [id])
+  enrollments Enrollment[]
+  schedules   Schedule[]
+  lessons     Lesson[]
 
   @@index([teacherId])
 }
 
-// Weekly recurring schedule slot for a group
 model Schedule {
-  id            String  @id @default(uuid())
-  groupId       String
-  dayOfWeek     Int     // 0=Sunday .. 6=Saturday
-  startTime     String  // "HH:mm"
-  durationMins  Int     @default(45)
-  timezone      String  @default("Africa/Cairo")
+  id           String @id @default(uuid())
+  groupId      String
+  dayOfWeek    Int    // 0=Sunday .. 6=Saturday
+  startTime    String // "HH:mm"
+  durationMins Int    @default(45)
+  timezone     String @default("Africa/Cairo")
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
@@ -167,40 +191,43 @@ model Schedule {
 }
 
 model MemorizationPlan {
-  id            String   @id @default(uuid())
-  studentId     String   @unique
-  currentSurah  String?
+  id              String   @id @default(uuid())
+  studentId       String   @unique
+  currentSurah    String?
   currentAyahFrom Int?
   currentAyahTo   Int?
-  reviewSurah   String?
-  reviewAyahFrom Int?
-  reviewAyahTo   Int?
-  progressPct   Int      @default(0)
-  notes         String?
-  updatedAt     DateTime @updatedAt
+  reviewSurah     String?
+  reviewAyahFrom  Int?
+  reviewAyahTo    Int?
+  progressPct     Int      @default(0)
+  notes           String?
+  updatedAt       DateTime @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
-// Individual class occurrence
 model Lesson {
-  id          String       @id @default(uuid())
-  groupId     String
-  studentId   String?      // null = group-level lesson
-  scheduledAt DateTime
-  status      LessonStatus @default(scheduled)
-  meetLink    String?
-  newPortion  String?      // e.g. "آل عمران 1-10"
-  reviewPortion String?
-  teacherNotes String?
-  rescheduledTo DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                  String       @id @default(uuid())
+  groupId             String
+  studentId           String?      // null = group-level lesson
+  scheduledAt         DateTime
+  status              LessonStatus @default(scheduled)
+  meetLink            String?
+  newPortion          String?      // e.g. "آل عمران 1-10"
+  reviewPortion       String?
+  errorsCount         Int?
+  errorsType          String?      // "تجويد", "نطق", "نسيان" — free-text
+  hasNewMemorization  Boolean      @default(true)
+  homework            String?      // required for next lesson
+  teacherNotes        String?
+  rescheduledTo       DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
-  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  student     Student?     @relation(fields: [studentId], references: [id])
-  attendance  Attendance[]
-  evaluation  Evaluation?
+  group      Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student    Student?     @relation(fields: [studentId], references: [id])
+  attendance Attendance[]
+  evaluation Evaluation?
 
   @@index([groupId])
   @@index([studentId])
@@ -222,15 +249,15 @@ model Attendance {
 }
 
 model Evaluation {
-  id          String          @id @default(uuid())
-  lessonId    String          @unique
-  studentId   String
+  id           String          @id @default(uuid())
+  lessonId     String          @unique
+  studentId    String
   memorization EvaluationGrade @default(good)
-  review      EvaluationGrade @default(good)
-  tajweed     EvaluationGrade @default(good)
-  commitment  EvaluationGrade @default(good)
-  overallNote String?
-  createdAt   DateTime        @default(now())
+  review       EvaluationGrade @default(good)
+  tajweed      EvaluationGrade @default(good)
+  commitment   EvaluationGrade @default(good)
+  overallNote  String?
+  createdAt    DateTime        @default(now())
 
   lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -256,4 +283,16 @@ model Payment {
 
   @@index([studentId])
   @@index([status])
+}
+
+// Simple in-DB rate limit tracking (fallback when no Redis)
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  ipHash    String
+  username  String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+  @@index([username, createdAt])
 }

@@ -16,21 +16,21 @@ export function LoginForm({ callbackUrl, initialError }: { callbackUrl?: string;
     e.preventDefault();
     setError(null);
     const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") || "");
+    const username = String(fd.get("username") || "");
     const password = String(fd.get("password") || "");
 
     startTransition(async () => {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "تعذّر تسجيل الدخول");
         return;
       }
-      router.push(callbackUrl || data.redirectTo || "/");
+      router.push(data.redirectTo || callbackUrl || "/");
       router.refresh();
     });
   }
@@ -38,8 +38,8 @@ export function LoginForm({ callbackUrl, initialError }: { callbackUrl?: string;
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email">البريد الإلكتروني</Label>
-        <Input id="email" name="email" type="email" required autoComplete="email" dir="ltr" className="text-right" />
+        <Label htmlFor="username">اسم المستخدم</Label>
+        <Input id="username" name="username" type="text" required autoComplete="username" dir="ltr" className="text-right" />
       </div>
 
       <div className="space-y-2">

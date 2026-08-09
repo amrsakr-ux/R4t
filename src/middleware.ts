@@ -35,6 +35,11 @@ export async function middleware(req: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
     const role = payload.role as string;
+    const mustChange = Boolean(payload.mustChangePassword);
+
+    if (mustChange && pathname !== "/change-password" && !pathname.startsWith("/api/auth")) {
+      return NextResponse.redirect(new URL("/change-password", req.nextUrl.origin));
+    }
 
     if (pathname.startsWith("/admin") && role !== "admin") {
       return NextResponse.redirect(new URL(DASHBOARD_BY_ROLE[role] ?? "/login", req.nextUrl.origin));

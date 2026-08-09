@@ -2,15 +2,17 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { dayNameAr } from "@/lib/utils";
+import { currentAcademicYear } from "@/lib/academic-year";
 
 export const dynamic = "force-dynamic";
 
 export default async function GroupsPage() {
+  const year = currentAcademicYear();
   const groups = await prisma.group.findMany({
     include: {
       teacher: { include: { user: { select: { fullName: true } } } },
       program: { select: { name: true } },
-      students: { select: { id: true } },
+      enrollments: { where: { academicYear: year, status: "active" }, select: { id: true } },
       schedules: true,
     },
     orderBy: { createdAt: "desc" },
@@ -36,7 +38,9 @@ export default async function GroupsPage() {
             <div className="mb-3 flex items-start justify-between">
               <div>
                 <div className="font-semibold text-primary">{g.name}</div>
-                <div className="text-xs text-muted-foreground">{g.program?.name ?? "بدون برنامج"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {g.program?.name ?? "بدون برنامج"} • {g.academicYear ?? "بدون عام"}
+                </div>
               </div>
               <Link href={`/admin/groups/${g.id}`} className="text-sm text-primary hover:underline">تعديل</Link>
             </div>
@@ -45,8 +49,11 @@ export default async function GroupsPage() {
               <span className="font-medium">{g.teacher?.user.fullName ?? "لم تُعيَّن"}</span>
             </div>
             <div className="mb-3 text-sm">
-              <span className="text-muted-foreground">عدد الطالبات: </span>
-              <span className="font-medium">{g.students.length} / {g.maxStudents}</span>
+              <span className="text-muted-foreground">الطالبات: </span>
+              <span className="font-medium">{g.enrollments.length} / {g.maxStudents}</span>
+              <span className="mx-2 text-muted-foreground">•</span>
+              <span className="text-muted-foreground">اللقاء: </span>
+              <span className="font-medium">{providerLabel(g.meetingProvider)}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {g.schedules.map((s) => (
@@ -61,4 +68,15 @@ export default async function GroupsPage() {
       </div>
     </div>
   );
+}
+
+function providerLabel(p: string) {
+  const map: Record<string, string> = {
+    google_meet: "Google Meet",
+    zoom: "Zoom",
+    discord: "Discord",
+    teams: "Microsoft Teams",
+    other: "أخرى",
+  };
+  return map[p] ?? p;
 }

@@ -2,15 +2,23 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
+import { currentAcademicYear } from "@/lib/academic-year";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudentsPage() {
+  const year = currentAcademicYear();
   const students = await prisma.student.findMany({
     include: {
-      user: { select: { fullName: true, email: true, phone: true, isActive: true } },
-      program: { select: { name: true } },
-      group: { select: { name: true } },
+      user: { select: { fullName: true, username: true, isActive: true } },
+      enrollments: {
+        where: { academicYear: year },
+        include: {
+          program: { select: { name: true } },
+          group: { select: { name: true } },
+        },
+        take: 1,
+      },
     },
     orderBy: { joinedAt: "desc" },
   });
@@ -18,7 +26,7 @@ export default async function StudentsPage() {
   return (
     <div>
       <PageHeader
-        title="الطالبات"
+        title={`الطالبات — ${year}`}
         description={`إجمالي ${students.length} طالبة`}
         actionHref="/admin/students/new"
         actionLabel="إضافة طالبة"
@@ -29,7 +37,7 @@ export default async function StudentsPage() {
           <thead className="border-b border-border bg-muted/40 text-right text-xs uppercase text-muted-foreground">
             <tr>
               <th className="p-3">الاسم</th>
-              <th className="p-3">البريد</th>
+              <th className="p-3">اسم المستخدم</th>
               <th className="p-3">البرنامج</th>
               <th className="p-3">الحلقة</th>
               <th className="p-3">الحالة</th>
@@ -44,26 +52,29 @@ export default async function StudentsPage() {
                 </td>
               </tr>
             )}
-            {students.map((s) => (
-              <tr key={s.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
-                <td className="p-3 font-medium">{s.user.fullName}</td>
-                <td className="p-3 text-muted-foreground" dir="ltr">{s.user.email}</td>
-                <td className="p-3">{s.program?.name ?? "—"}</td>
-                <td className="p-3">{s.group?.name ?? "—"}</td>
-                <td className="p-3">
-                  {s.user.isActive ? (
-                    <Badge className="bg-secondary/20 text-secondary hover:bg-secondary/20">نشطة</Badge>
-                  ) : (
-                    <Badge variant="secondary">موقوفة</Badge>
-                  )}
-                </td>
-                <td className="p-3 text-left">
-                  <Link href={`/admin/students/${s.id}`} className="text-primary hover:underline">
-                    عرض
-                  </Link>
-                </td>
-              </tr>
-            ))}
+            {students.map((s) => {
+              const enrollment = s.enrollments[0];
+              return (
+                <tr key={s.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
+                  <td className="p-3 font-medium">{s.user.fullName}</td>
+                  <td className="p-3 text-muted-foreground" dir="ltr">{s.user.username}</td>
+                  <td className="p-3">{enrollment?.program?.name ?? "—"}</td>
+                  <td className="p-3">{enrollment?.group?.name ?? "—"}</td>
+                  <td className="p-3">
+                    {s.user.isActive ? (
+                      <Badge className="bg-secondary/20 text-secondary hover:bg-secondary/20">نشطة</Badge>
+                    ) : (
+                      <Badge variant="secondary">موقوفة</Badge>
+                    )}
+                  </td>
+                  <td className="p-3 text-left">
+                    <Link href={`/admin/students/${s.id}`} className="text-primary hover:underline">
+                      عرض
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

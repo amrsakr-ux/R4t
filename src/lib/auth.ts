@@ -15,9 +15,10 @@ function getSecret() {
 
 export type SessionUser = {
   id: string;
-  email: string;
+  username: string;
   role: UserRole;
   fullName: string;
+  mustChangePassword: boolean;
 };
 
 export async function signSession(user: SessionUser): Promise<string> {
@@ -33,9 +34,10 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
     const { payload } = await jwtVerify(token, getSecret());
     return {
       id: payload.id as string,
-      email: payload.email as string,
+      username: payload.username as string,
       role: payload.role as UserRole,
       fullName: payload.fullName as string,
+      mustChangePassword: Boolean(payload.mustChangePassword),
     };
   } catch {
     return null;
@@ -65,12 +67,29 @@ export async function clearSessionCookie() {
   store.delete(SESSION_COOKIE);
 }
 
-export async function authenticate(email: string, password: string): Promise<SessionUser | null> {
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+export async function authenticate(usernameOrEmail: string, password: string): Promise<SessionUser | null> {
+  const identifier = usernameOrEmail.toLowerCase().trim();
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [{ username: identifier }, { email: identifier }],
+    },
+  });
   if (!user || !user.isActive) return null;
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return null;
-  return { id: user.id, email: user.email, role: user.role, fullName: user.fullName };
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    fullName: user.fullName,
+    mustChangePassword: user.mustChangePassword,
+  };
 }
 
 export const SESSION_COOKIE_NAME = SESSION_COOKIE;

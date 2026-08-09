@@ -1,19 +1,18 @@
 import { Users, GraduationCap, BookOpen, Calendar, CreditCard, Clock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { currentAcademicYear } from "@/lib/academic-year";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  const [students, teachers, groups, weekLessons, pendingPayments] = await Promise.all([
-    prisma.student.count(),
+  const year = currentAcademicYear();
+  const [activeStudents, teachers, groups, weekLessons, pendingPayments] = await Promise.all([
+    prisma.enrollment.count({ where: { academicYear: year, status: "active" } }),
     prisma.teacher.count(),
     prisma.group.count({ where: { isActive: true } }),
     prisma.lesson.count({
       where: {
-        scheduledAt: {
-          gte: startOfWeek(),
-          lt: endOfWeek(),
-        },
+        scheduledAt: { gte: startOfWeek(), lt: endOfWeek() },
       },
     }),
     prisma.payment.count({ where: { status: "pending" } }),
@@ -23,10 +22,10 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-primary">لوحة الإدارة</h1>
-        <p className="text-muted-foreground">نظرة عامة على الأكاديمية.</p>
+        <p className="text-muted-foreground">نظرة عامة على الأكاديمية — العام الدراسي {year}.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <Stat icon={<Users />} label="الطالبات" value={students} />
+        <Stat icon={<Users />} label="الطالبات النشطات" value={activeStudents} />
         <Stat icon={<GraduationCap />} label="المعلمات" value={teachers} />
         <Stat icon={<BookOpen />} label="الحلقات" value={groups} />
         <Stat icon={<Calendar />} label="حصص هذا الأسبوع" value={weekLessons} />
@@ -39,8 +38,8 @@ export default async function AdminDashboard() {
           روابط سريعة
         </div>
         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-          <QuickLink href="/admin/students" label="إضافة طالبة جديدة" />
-          <QuickLink href="/admin/groups" label="إنشاء حلقة" />
+          <QuickLink href="/admin/students/new" label="إضافة طالبة جديدة" />
+          <QuickLink href="/admin/groups/new" label="إنشاء حلقة" />
           <QuickLink href="/admin/payments" label="مراجعة المدفوعات" />
         </div>
       </div>
@@ -70,8 +69,7 @@ function QuickLink({ href, label }: { href: string; label: string }) {
 
 function startOfWeek() {
   const d = new Date();
-  const day = d.getDay();
-  d.setDate(d.getDate() - day);
+  d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return d;
 }

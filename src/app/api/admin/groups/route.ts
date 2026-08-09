@@ -7,8 +7,10 @@ const schema = z.object({
   name: z.string().min(1),
   teacherId: z.string().nullable().optional(),
   programId: z.string().nullable().optional(),
+  meetingProvider: z.enum(["google_meet", "zoom", "discord", "teams", "other"]).default("google_meet"),
   meetLink: z.string().url().nullable().optional().or(z.literal("").transform(() => null)),
   maxStudents: z.number().int().min(1).max(50),
+  academicYear: z.string().regex(/^\d{4}-\d{4}$/),
   schedules: z.array(
     z.object({
       dayOfWeek: z.number().int().min(0).max(6),
@@ -31,8 +33,10 @@ export async function POST(req: Request) {
       name: d.name.trim(),
       teacherId: d.teacherId || null,
       programId: d.programId || null,
+      meetingProvider: d.meetingProvider,
       meetLink: d.meetLink || null,
       maxStudents: d.maxStudents,
+      academicYear: d.academicYear,
       schedules: {
         create: d.schedules.map((s) => ({
           dayOfWeek: s.dayOfWeek,

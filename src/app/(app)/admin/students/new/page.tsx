@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { StudentForm } from "./student-form";
+import { academicYearOptions, currentAcademicYear } from "@/lib/academic-year";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +13,13 @@ export default async function NewStudentPage() {
 
   return (
     <div>
-      <PageHeader title="إضافة طالبة جديدة" description="أنشئي حسابًا جديدًا للطالبة." />
+      <PageHeader title="إضافة طالبة جديدة" description="أنشئي حسابًا جديدًا للطالبة وسجليها في العام الدراسي." />
       <div className="max-w-2xl rounded-2xl border border-border bg-card p-6">
         <StudentForm
           programs={programs.map((p) => ({ id: p.id, name: p.name }))}
           groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+          academicYears={academicYearOptions(3)}
+          defaultAcademicYear={currentAcademicYear()}
         />
       </div>
     </div>

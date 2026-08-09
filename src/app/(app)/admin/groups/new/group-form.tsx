@@ -12,21 +12,25 @@ type Slot = { dayOfWeek: number; startTime: string; durationMins: number };
 
 const DAYS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-export function GroupForm({ teachers, programs }: { teachers: Opt[]; programs: Opt[] }) {
+const PROVIDERS = [
+  { value: "google_meet", label: "Google Meet" },
+  { value: "zoom", label: "Zoom" },
+  { value: "discord", label: "Discord" },
+  { value: "teams", label: "Microsoft Teams" },
+  { value: "other", label: "أخرى" },
+];
+
+export function GroupForm({ teachers, programs, academicYears, defaultAcademicYear }: {
+  teachers: Opt[]; programs: Opt[]; academicYears: string[]; defaultAcademicYear: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([{ dayOfWeek: 6, startTime: "06:00", durationMins: 45 }]);
 
-  function addSlot() {
-    setSlots([...slots, { dayOfWeek: 3, startTime: "18:00", durationMins: 45 }]);
-  }
-  function removeSlot(i: number) {
-    setSlots(slots.filter((_, idx) => idx !== i));
-  }
-  function updateSlot(i: number, patch: Partial<Slot>) {
-    setSlots(slots.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
-  }
+  function addSlot() { setSlots([...slots, { dayOfWeek: 3, startTime: "18:00", durationMins: 45 }]); }
+  function removeSlot(i: number) { setSlots(slots.filter((_, idx) => idx !== i)); }
+  function updateSlot(i: number, patch: Partial<Slot>) { setSlots(slots.map((s, idx) => (idx === i ? { ...s, ...patch } : s))); }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,8 +40,10 @@ export function GroupForm({ teachers, programs }: { teachers: Opt[]; programs: O
       name: fd.get("name"),
       teacherId: fd.get("teacherId") || null,
       programId: fd.get("programId") || null,
+      meetingProvider: fd.get("meetingProvider"),
       meetLink: fd.get("meetLink") || null,
       maxStudents: Number(fd.get("maxStudents")) || 10,
+      academicYear: fd.get("academicYear"),
       schedules: slots,
     };
     startTransition(async () => {
@@ -61,14 +67,28 @@ export function GroupForm({ teachers, programs }: { teachers: Opt[]; programs: O
           <Input id="name" name="name" required placeholder="مثال: حلقة الفجر 1" />
         </div>
         <div className="space-y-2">
+          <Label htmlFor="academicYear">العام الدراسي</Label>
+          <select id="academicYear" name="academicYear" defaultValue={defaultAcademicYear}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            {academicYears.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="maxStudents">الحد الأقصى للطالبات</Label>
           <Input id="maxStudents" name="maxStudents" type="number" min={1} defaultValue={10} />
         </div>
         <Select label="المعلمة" name="teacherId" options={teachers} placeholder="اختاري المعلمة" />
         <Select label="البرنامج" name="programId" options={programs} placeholder="اختاري البرنامج" />
+        <div className="space-y-2">
+          <Label htmlFor="meetingProvider">نوع اللقاء</Label>
+          <select id="meetingProvider" name="meetingProvider" defaultValue="google_meet"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            {PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="meetLink">رابط الحصة (اختياري)</Label>
-          <Input id="meetLink" name="meetLink" dir="ltr" placeholder="https://meet.google.com/..." />
+          <Input id="meetLink" name="meetLink" dir="ltr" placeholder="https://..." />
           <p className="text-xs text-muted-foreground">يمكن للمعلمة تحديثه لاحقًا لكل حصة.</p>
         </div>
       </div>
@@ -86,11 +106,8 @@ export function GroupForm({ teachers, programs }: { teachers: Opt[]; programs: O
             <div key={i} className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-muted/30 p-3">
               <div className="min-w-[140px] flex-1 space-y-1">
                 <Label className="text-xs">اليوم</Label>
-                <select
-                  value={s.dayOfWeek}
-                  onChange={(e) => updateSlot(i, { dayOfWeek: Number(e.target.value) })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
+                <select value={s.dayOfWeek} onChange={(e) => updateSlot(i, { dayOfWeek: Number(e.target.value) })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   {DAYS.map((d, idx) => <option key={idx} value={idx}>{d}</option>)}
                 </select>
               </div>
@@ -132,12 +149,8 @@ function Select({ label, name, options, placeholder }: { label: string; name: st
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
-      <select
-        id={name}
-        name={name}
-        defaultValue=""
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-      >
+      <select id={name} name={name} defaultValue=""
+        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
         <option value="">{placeholder}</option>
         {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
       </select>
