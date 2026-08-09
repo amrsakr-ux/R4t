@@ -1,3 +1,4 @@
+// Sana Academy — Prisma schema
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,249 +10,250 @@ datasource db {
 }
 
 enum UserRole {
-  candidate
-  ops_staff
-  ops_admin
-  bd
-  system_admin
+  student
+  teacher
+  admin
 }
 
-enum GraduationStatus {
-  graduated
-  in_progress
-  not_started
+enum Gender {
+  female
+  male
 }
 
-enum CandidateStatus {
-  invited
-  registered
-  assessed
-  scored
-  shortlisted
-  placed
+enum LessonStatus {
+  scheduled
+  completed
+  absent
+  postponed
+  cancelled
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+enum PaymentStatus {
+  pending
+  confirmed
   rejected
 }
 
-enum QuestionCategory {
-  motivation
-  goals
-  challenges
-  experience
-  skills
-  preferences
-}
-
-enum ParseStatus {
-  pending
-  parsed
-  failed
-}
-
-enum PlacementStatus {
-  confirmed
-  pending
-  fell_through
+enum EvaluationGrade {
+  excellent
+  very_good
+  good
+  needs_review
 }
 
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
-  passwordHash String    @map("password_hash")
-  role         UserRole  @default(candidate)
-  fullName     String    @map("full_name")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  lastLoginAt  DateTime? @map("last_login_at")
-  isActive     Boolean   @default(true) @map("is_active")
+  passwordHash String
+  role         UserRole
+  fullName     String
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  candidate    Candidate?
-  auditLogs    AuditLog[]
-  placements   Placement[] @relation("PlacementCreatedBy")
+  student  Student?
+  teacher  Teacher?
+  admin    Admin?
+  sessions Session[]
 
-  @@map("users")
+  @@index([role])
 }
 
-model Candidate {
-  id                   String           @id @default(uuid())
-  userId               String           @unique @map("user_id")
-  phone                String?
-  educationLevel       String?          @map("education_level")
-  graduationStatus     GraduationStatus? @map("graduation_status")
-  careerInterests      String[]         @map("career_interests")
-  preferredJobTracks   String[]         @map("preferred_job_tracks")
-  applicationLinkToken String?          @unique @map("application_link_token")
-  status               CandidateStatus  @default(invited)
-  notes                String?
-  createdAt            DateTime         @default(now()) @map("created_at")
-  updatedAt            DateTime         @updatedAt @map("updated_at")
-
-  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assessmentResponses  AssessmentResponse[]
-  cvDocuments          CvDocument[]
-  aiScores             AiScore[]
-  jobMatches           CandidateJobMatch[]
-  placements           Placement[]
-
-  @@map("candidates")
-}
-
-model AssessmentQuestion {
-  id           String           @id @default(uuid())
-  questionText String           @map("question_text")
-  category     QuestionCategory
-  isActive     Boolean          @default(true) @map("is_active")
-  displayOrder Int              @map("display_order")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
-
-  responses    AssessmentResponse[]
-
-  @@map("assessment_questions")
-}
-
-model AssessmentResponse {
-  id           String   @id @default(uuid())
-  candidateId  String   @map("candidate_id")
-  questionId   String   @map("question_id")
-  responseText String   @map("response_text")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  candidate    Candidate          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  question     AssessmentQuestion @relation(fields: [questionId], references: [id])
-
-  @@unique([candidateId, questionId])
-  @@map("assessment_responses")
-}
-
-model CvDocument {
-  id          String      @id @default(uuid())
-  candidateId String      @map("candidate_id")
-  fileUrl     String      @map("file_url")
-  fileName    String?     @map("file_name")
-  fileSize    Int?        @map("file_size")
-  parsedData  Json?       @map("parsed_data")
-  parseStatus ParseStatus @default(pending) @map("parse_status")
-  uploadedAt  DateTime    @default(now()) @map("uploaded_at")
-
-  candidate   Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-
-  @@map("cv_documents")
-}
-
-model Client {
-  id           String           @id @default(uuid())
-  name         String
-  industry     String?
-  contactEmail String?          @map("contact_email")
-  contactName  String?          @map("contact_name")
-  isActive     Boolean          @default(true) @map("is_active")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
-
-  jobOpportunities JobOpportunity[]
-  placements       Placement[]
-
-  @@map("clients")
-}
-
-model JobOpportunity {
-  id                      String   @id @default(uuid())
-  title                   String
-  clientId                String?  @map("client_id")
-  requiredSkills          String[] @map("required_skills")
-  requiredExperienceYears Int?     @map("required_experience_years")
-  jobTrack                String   @map("job_track")
-  description             String?
-  isActive                Boolean  @default(true) @map("is_active")
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime @updatedAt @map("updated_at")
-
-  client     Client?             @relation(fields: [clientId], references: [id])
-  jobMatches CandidateJobMatch[]
-  placements Placement[]
-
-  @@map("job_opportunities")
-}
-
-model AiScore {
-  id                    String   @id @default(uuid())
-  candidateId           String   @map("candidate_id")
-  overallScore          Int      @map("overall_score")
-  cvQualityScore        Int      @map("cv_quality_score")
-  skillsRelevanceScore  Int      @map("skills_relevance_score")
-  experienceScore       Int      @map("experience_score")
-  assessmentScore       Int      @map("assessment_score")
-  modelVersion          String   @map("model_version")
-  scoringWeights        Json?    @map("scoring_weights")
-  scoreBreakdown        Json?    @map("score_breakdown")
-  computedAt            DateTime @default(now()) @map("computed_at")
-
-  candidate             Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-
-  @@map("ai_scores")
-}
-
-model CandidateJobMatch {
-  id                 String   @id @default(uuid())
-  candidateId        String   @map("candidate_id")
-  jobOpportunityId   String   @map("job_opportunity_id")
-  matchPercentage    Float    @map("match_percentage")
-  recommendedRank    Int      @map("recommended_rank")
-  matchReasons       String[] @map("match_reasons")
-  modelVersion       String   @map("model_version")
-  createdAt          DateTime @default(now()) @map("created_at")
-
-  candidate          Candidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  jobOpportunity     JobOpportunity @relation(fields: [jobOpportunityId], references: [id])
-
-  @@unique([candidateId, jobOpportunityId])
-  @@map("candidate_job_matches")
-}
-
-model Placement {
-  id               String          @id @default(uuid())
-  candidateId      String          @map("candidate_id")
-  jobOpportunityId String?         @map("job_opportunity_id")
-  clientId         String          @map("client_id")
-  projectName      String?         @map("project_name")
-  jobTitle         String          @map("job_title")
-  placementDate    DateTime        @map("placement_date")
-  placementStatus  PlacementStatus @default(pending) @map("placement_status")
-  salary           String?
-  notes            String?
-  createdBy        String          @map("created_by")
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
-
-  candidate        Candidate      @relation(fields: [candidateId], references: [id])
-  jobOpportunity   JobOpportunity? @relation(fields: [jobOpportunityId], references: [id])
-  client           Client         @relation(fields: [clientId], references: [id])
-  createdByUser    User           @relation("PlacementCreatedBy", fields: [createdBy], references: [id])
-
-  @@map("placements")
-}
-
-model AuditLog {
-  id         String   @id @default(uuid())
-  userId     String?  @map("user_id")
-  action     String
-  entityType String   @map("entity_type")
-  entityId   String   @map("entity_id")
-  metadata   Json?
-  ipAddress  String?  @map("ip_address")
-  userAgent  String?  @map("user_agent")
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  user       User?    @relation(fields: [userId], references: [id])
-
-  @@map("audit_logs")
-}
-
-model SystemConfig {
+model Session {
   id        String   @id @default(uuid())
-  key       String   @unique
-  value     Json
-  updatedAt DateTime @updatedAt @map("updated_at")
-  updatedBy String?  @map("updated_by")
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("system_config")
+  @@index([userId])
+}
+
+model Program {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  students Student[]
+  groups   Group[]
+}
+
+model Student {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  programId   String?
+  groupId     String?
+  gender      Gender   @default(female)
+  birthDate   DateTime?
+  guardianName String?
+  guardianPhone String?
+  notes       String?
+  joinedAt    DateTime @default(now())
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program         Program?           @relation(fields: [programId], references: [id])
+  group           Group?             @relation(fields: [groupId], references: [id])
+  memorizationPlan MemorizationPlan?
+  lessons         Lesson[]
+  attendance      Attendance[]
+  evaluations     Evaluation[]
+  payments        Payment[]
+
+  @@index([groupId])
+  @@index([programId])
+}
+
+model Teacher {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  bio       String?
+  specialty String?
+  joinedAt  DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groups Group[]
+}
+
+model Admin {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String
+  teacherId   String?
+  programId   String?
+  meetLink    String?
+  maxStudents Int      @default(10)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  teacher   Teacher?   @relation(fields: [teacherId], references: [id])
+  program   Program?   @relation(fields: [programId], references: [id])
+  students  Student[]
+  schedules Schedule[]
+  lessons   Lesson[]
+
+  @@index([teacherId])
+}
+
+// Weekly recurring schedule slot for a group
+model Schedule {
+  id            String  @id @default(uuid())
+  groupId       String
+  dayOfWeek     Int     // 0=Sunday .. 6=Saturday
+  startTime     String  // "HH:mm"
+  durationMins  Int     @default(45)
+  timezone      String  @default("Africa/Cairo")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+model MemorizationPlan {
+  id            String   @id @default(uuid())
+  studentId     String   @unique
+  currentSurah  String?
+  currentAyahFrom Int?
+  currentAyahTo   Int?
+  reviewSurah   String?
+  reviewAyahFrom Int?
+  reviewAyahTo   Int?
+  progressPct   Int      @default(0)
+  notes         String?
+  updatedAt     DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+// Individual class occurrence
+model Lesson {
+  id          String       @id @default(uuid())
+  groupId     String
+  studentId   String?      // null = group-level lesson
+  scheduledAt DateTime
+  status      LessonStatus @default(scheduled)
+  meetLink    String?
+  newPortion  String?      // e.g. "آل عمران 1-10"
+  reviewPortion String?
+  teacherNotes String?
+  rescheduledTo DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student     Student?     @relation(fields: [studentId], references: [id])
+  attendance  Attendance[]
+  evaluation  Evaluation?
+
+  @@index([groupId])
+  @@index([studentId])
+  @@index([scheduledAt])
+}
+
+model Attendance {
+  id        String           @id @default(uuid())
+  lessonId  String
+  studentId String
+  status    AttendanceStatus @default(present)
+  note      String?
+
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, studentId])
+  @@index([studentId])
+}
+
+model Evaluation {
+  id          String          @id @default(uuid())
+  lessonId    String          @unique
+  studentId   String
+  memorization EvaluationGrade @default(good)
+  review      EvaluationGrade @default(good)
+  tajweed     EvaluationGrade @default(good)
+  commitment  EvaluationGrade @default(good)
+  overallNote String?
+  createdAt   DateTime        @default(now())
+
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model Payment {
+  id           String        @id @default(uuid())
+  studentId    String
+  amount       Decimal       @db.Decimal(10, 2)
+  currency     String        @default("EGP")
+  monthCovered String        // "2026-08"
+  method       String        @default("instapay")
+  proofUrl     String?
+  status       PaymentStatus @default(pending)
+  submittedAt  DateTime      @default(now())
+  confirmedAt  DateTime?
+  confirmedBy  String?       // admin userId
+  note         String?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
 }

@@ -1,87 +1,82 @@
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
+import { cookies } from "next/headers";
+import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import type { UserRole } from "@prisma/client";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: "jwt" },
-  providers: [
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+const SESSION_COOKIE = "sana_session";
+const SESSION_TTL_DAYS = 30;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+function getSecret() {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new Error("AUTH_SECRET is not set");
+  return new TextEncoder().encode(secret);
+}
 
-        if (!user || !user.isActive) return null;
+export type SessionUser = {
+  id: string;
+  email: string;
+  role: UserRole;
+  fullName: string;
+};
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        );
+export async function signSession(user: SessionUser): Promise<string> {
+  return await new SignJWT({ ...user })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${SESSION_TTL_DAYS}d`)
+    .sign(getSecret());
+}
 
-        if (!isValid) return null;
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        });
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.fullName,
-          role: user.role,
-        };
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as { id: string; role: UserRole }).role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as UserRole;
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: "/login",
-  },
-});
-
-declare module "next-auth" {
-  interface User {
-    role: UserRole;
-  }
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      name: string;
-      role: UserRole;
+export async function verifySession(token: string): Promise<SessionUser | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret());
+    return {
+      id: payload.id as string,
+      email: payload.email as string,
+      role: payload.role as UserRole,
+      fullName: payload.fullName as string,
     };
+  } catch {
+    return null;
   }
 }
 
-declare module "@auth/core/types" {
-  interface JWT {
-    id: string;
-    role: UserRole;
-  }
+export async function getSession(): Promise<SessionUser | null> {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  return verifySession(token);
 }
+
+export async function setSessionCookie(token: string) {
+  const store = await cookies();
+  store.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * SESSION_TTL_DAYS,
+  });
+}
+
+export async function clearSessionCookie() {
+  const store = await cookies();
+  store.delete(SESSION_COOKIE);
+}
+
+export async function authenticate(email: string, password: string): Promise<SessionUser | null> {
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  if (!user || !user.isActive) return null;
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) return null;
+  return { id: user.id, email: user.email, role: user.role, fullName: user.fullName };
+}
+
+export const SESSION_COOKIE_NAME = SESSION_COOKIE;
+
+export const DASHBOARD_ROUTES: Record<UserRole, string> = {
+  student: "/student",
+  teacher: "/teacher",
+  admin: "/admin",
+};
