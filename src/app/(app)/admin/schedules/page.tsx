@@ -1,18 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { dayNameAr } from "@/lib/utils";
+import { currentAcademicYear } from "@/lib/academic-year";
 
 export const dynamic = "force-dynamic";
 
 const DAYS_ORDER = [6, 0, 1, 2, 3, 4, 5]; // Sat first (Egypt week)
 
 export default async function SchedulesPage() {
+  const year = currentAcademicYear();
   const schedules = await prisma.schedule.findMany({
     include: {
       group: {
         include: {
           teacher: { include: { user: { select: { fullName: true } } } },
-          students: { select: { id: true } },
+          enrollments: { where: { academicYear: year, status: "active" }, select: { id: true } },
         },
       },
     },
@@ -47,7 +49,7 @@ export default async function SchedulesPage() {
                       <span dir="ltr" className="text-xs text-muted-foreground">{s.startTime}</span>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {s.group.teacher?.user.fullName ?? "بدون معلمة"} — {s.group.students.length} طالبة
+                      {s.group.teacher?.user.fullName ?? "بدون معلمة"} — {s.group.enrollments.length} طالبة
                     </div>
                   </div>
                 ))}
